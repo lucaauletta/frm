@@ -16,6 +16,7 @@ from .media import discover, NUMBER
 from .playback import PlayerSession
 from .review import ReviewDocument
 from .viewer import ReviewViewer
+from .updates import UpdateChecker
 
 
 def aligned_frame(frame_a, offset):
@@ -40,6 +41,7 @@ class MainWindow(QMainWindow):
         self.review_state = None
         self.incoming = {}
         self.file_filter = "Media (*.dpx *.exr *.tif *.tiff *.jpg *.jpeg *.png *.mov *.mp4 *.m4v);;All files (*)"
+        self.updates = UpdateChecker(self)
         self._menus()
         root = QWidget(); self.setCentralWidget(root)
         layout = QVBoxLayout(root); layout.setContentsMargins(12, 8, 12, 10); layout.setSpacing(8)
@@ -159,7 +161,8 @@ class MainWindow(QMainWindow):
             "Playback": [("Play / Pause", self.toggle_play, None)],
             "Annotations": [("Add / edit note", self.edit_note, None), ("Export PNG / JPG…", self.export_images, None),
                             ("Export PDF report…", self.export_pdf, None)],
-            "Help": [("About FRM", self.about, None)],
+            "Help": [("About FRM", self.about, None),
+                     ("Check for updates…", lambda: self.updates.check(True), None)],
         }
         for title, entries in groups.items():
             menu = self.menuBar().addMenu(title)
@@ -168,6 +171,12 @@ class MainWindow(QMainWindow):
                 if shortcut:
                     action.setShortcut(QKeySequence(shortcut))
                 menu.addAction(action)
+            if title == "Help":
+                automatic = QAction("Check for updates at startup", self)
+                automatic.setCheckable(True)
+                automatic.setChecked(self.updates.automatic)
+                automatic.toggled.connect(self.updates.set_automatic)
+                menu.addAction(automatic)
 
     def about(self):
         QMessageBox.information(self, "FRM", f"FRM {__version__} / Player & Review\nGPL-3.0-only\n\n"

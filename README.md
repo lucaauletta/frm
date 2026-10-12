@@ -6,7 +6,7 @@ FRM is made for artists, editors and post-production teams who want to drop a sh
 
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
-> **Version 0.2.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.3.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 
@@ -14,13 +14,18 @@ Download the package for your computer from [GitHub Releases](https://github.com
 
 | Computer | Package | Start |
 | --- | --- | --- |
-| Windows x64 | `FRM-…-Windows-x64.zip` | Extract the **whole folder**, then double-click `FRM.exe` |
-| Mac with Apple Silicon | `FRM-…-macOS-arm64.zip` | Extract, then open `FRM.app` |
-| Mac with Intel processor | `FRM-…-macOS-x64.zip` | Extract, then open `FRM.app` |
+| Windows x64 portable | `FRM-...-Windows-x64-Portable.exe` | Double-click the single file |
+| Windows x64 installed | `FRM-...-Windows-x64-Setup.exe` | Run Setup |
+| Linux x64 | `FRM-...-Linux-x64.tar.gz` | Extract and run `./FRM-Portable` |
+| Mac Apple Silicon / Intel | Corresponding macOS ZIP | Extract and open FRM.app |
 
-Packages are produced by the build workflow only when that platform's tests and build succeed. A listed target is not a claim that its release asset is already available. See the [Actions page](https://github.com/lucaauletta/frm/actions) for actual results.
+The Windows portable is **one EXE**, with no adjacent `_internal` folder or Python/codecs to install. Runtime libraries, licenses and application source are embedded. Each launch extracts its runtime into a private temporary directory, removed on normal exit. This is separate from media cache and makes startup slower. Forced termination may leave runtime files. Do not run the portable as administrator.
 
-No installer, Python installation, administrator access, account or internet connection is required by the packaged app. Keep all files together; the executable alone is not portable. The app can live on an external drive. Its temporary preview files use the operating system's writable temporary directory.
+Windows Setup installs per user under `%LOCALAPPDATA%/Programs/FRM`, without administrator access, and adds a Start menu shortcut and uninstaller. Future installers use the same application identity and reuse the installation directory. Save your review and close FRM before upgrading. Portable copies remain independent. Uninstalling leaves saved reviews and exports intact.
+
+Linux supports **Ubuntu 24.04 x64 or compatible newer glibc desktops (glibc 2.39+)**, not Alpine/musl or Linux ARM. It includes Python and media libraries; system graphics drivers and desktop libraries remain required. On Ubuntu: `sudo apt install libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0`. Extract using `tar -xzf FRM-...-Linux-x64.tar.gz`; run `./FRM-Portable`. If necessary, use `chmod +x FRM-Portable`. Temporary storage must allow execution and symbolic links. CI validates Linux using Qt offscreen; specific desktops/drivers require field testing.
+
+Source-and-Notices ZIPs are optional companion downloads, not dependencies. Playback works offline. Runtime extraction and disk preview cache use writable operating-system temporary storage.
 
 Early builds are unsigned. Windows SmartScreen or macOS Gatekeeper may ask you to approve opening the app. On macOS, use the normal **Privacy & Security → Open Anyway** flow for a download you trust; do not disable system security globally. macOS builds target macOS 14 or later; Windows builds target Windows 11 x64. Other versions are not validated.
 
@@ -31,7 +36,15 @@ Early builds are unsigned. Windows SmartScreen or macOS Gatekeeper may ask you t
 3. Choose **RAM cache while playing** (default), **Disk cache while playing**, or **Direct / no cache**. The current frame is delivered before it is added to the optional cache.
 4. Use **Color** for the selected source to inspect or override the viewing transform. **Metadata** shows the decoder-reported information and its interpretation.
 
-The app never modifies your source media and contains no telemetry, network calls or automatic updater.
+The app never modifies your source media and contains no telemetry.
+
+### Updates and publisher
+
+Use **Help > Check for updates** to check published GitHub releases, including previews. **Check for updates at startup** defaults to on for Windows installed copies and off for portable copies. The preference is stored in your user profile. GitHub receives a normal HTTPS request (including your IP address), never media paths, images or notes. Failed automatic checks stay quiet; playback works offline.
+
+A newer version offers to open the official release page. Run the new Windows **Setup** to upgrade; replace the EXE for portable Windows, or the app/binary for Mac/Linux. Downloads and installation are not automatic or silent.
+
+Publisher/copyright metadata identifies **Luca Auletta** and **https://github.com/lucaauletta/frm**. These builds are unsigned: author metadata is not a digital signature and does not remove Windows SmartScreen/Unknown Publisher warnings. There is no signed automatic update channel yet.
 
 ## Compare two versions
 
@@ -170,7 +183,7 @@ python3.13 -m venv .venv
 .venv/bin/python scripts/build.py
 ```
 
-Output: `dist/FRM/FRM.exe` on Windows, `dist/FRM.app` on macOS. Build each Mac architecture on that architecture. Dependencies are pinned in `pyproject.toml`; builds include dependency versions, available third-party notices and the corresponding FRM source.
+Output: `dist/FRM-Portable.exe` on Windows, `dist/FRM-Portable` on Linux, `dist/FRM.app` on macOS. Compile `packaging/windows.iss` with Inno Setup 6 for Windows Setup. Build each OS/architecture natively. Dependencies are pinned in `pyproject.toml`; builds embed dependency versions, third-party notices and corresponding FRM source. Companion source/notices ZIPs are written to `artifacts`.
 
 ## Project structure
 

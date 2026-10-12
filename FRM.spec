@@ -1,7 +1,9 @@
 from PyInstaller.utils.hooks import collect_all
 import sys
+import os
+from pathlib import Path
 
-datas, binaries, hiddenimports = [('frm/assets', 'frm/assets')], [], []
+datas, binaries, hiddenimports = [('frm/assets', 'frm/assets'), ('build/legal', 'legal')], [], []
 for package in ['OpenImageIO', 'PyOpenColorIO', 'av']:
     data, binary, hidden = collect_all(package)
     datas += data
@@ -13,10 +15,15 @@ a = Analysis(['run_frm.py'], pathex=[], binaries=binaries, datas=datas,
              runtime_hooks=[], excludes=['PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
                                          'PySide6.QtPdf', 'PySide6.QtPdfWidgets'], noarchive=False)
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='FRM', debug=False,
-          bootloader_ignore_signals=False, strip=False, upx=False, console=False)
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FRM')
+if sys.platform == 'darwin':
+    exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='FRM', debug=False,
+              bootloader_ignore_signals=False, strip=False, upx=False, console=False)
+    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FRM')
+else:
+    exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='FRM-Portable',
+              debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
+              version='packaging/windows-version.txt' if sys.platform == 'win32' else None)
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
-                 info_plist={'CFBundleShortVersionString': '0.2.0',
+                 info_plist={'CFBundleShortVersionString': '0.3.0',
                              'NSHighResolutionCapable': True})

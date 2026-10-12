@@ -21,8 +21,7 @@ def main():
         system = Path(os.environ["SystemRoot"])
         env["PATH"] = os.pathsep.join(map(str, [Path(sys.executable).parent,
             Path(sys.base_prefix), Path(sys.base_prefix) / "DLLs", system / "System32", system]))
-    subprocess.run([sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", "FRM.spec"], cwd=ROOT, env=env, check=True)
-    target = ROOT / "dist" / ("FRM.app/Contents/Resources" if sys.platform == "darwin" else "FRM")
+    target = ROOT / "build" / "legal"
     target.mkdir(parents=True, exist_ok=True)
     for name in ("LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, target / name)
@@ -43,12 +42,17 @@ def main():
     # Ship the exact application source alongside the binary.
     source = target / "source"
     source.mkdir(exist_ok=True)
-    for name in ("frm", "scripts", "tests", "docs"):
+    for name in ("frm", "scripts", "tests", "docs", "packaging", ".github"):
         if not (ROOT / name).exists():
             continue
         shutil.copytree(ROOT / name, source / name, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
     for name in ("pyproject.toml", "FRM.spec", "run_frm.py", "LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, source / name)
+    # Keep legal notices and exact source inside the single executable as well.
+    subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "FRM.spec"], cwd=ROOT, env=env, check=True)
+    artifacts = ROOT / "artifacts"
+    artifacts.mkdir(exist_ok=True)
+    shutil.make_archive(str(artifacts / f"FRM-v{__version__}-{platform.system()}-{platform.machine()}-Source-and-Notices"), "zip", target)
     print(f"Built FRM {__version__} for {platform.system()} {platform.machine()}")
 
 

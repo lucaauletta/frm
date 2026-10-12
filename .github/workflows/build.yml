@@ -12,13 +12,15 @@ permissions:
 
 jobs:
   build:
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             label: Windows-x64
+          - os: ubuntu-24.04
+            label: Linux-x64
           - os: macos-14
             label: macOS-arm64
           - os: macos-15-intel
@@ -32,6 +34,9 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
+      - name: Linux desktop libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
       - run: python scripts/build.py
@@ -40,24 +45,58 @@ jobs:
         timeout-minutes: 2
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath dist/FRM/FRM.exe -ArgumentList '--self-test', 'artifacts/portable-smoke.json' -Wait -PassThru -WindowStyle Hidden
+          $process = Start-Process -FilePath dist/FRM-Portable.exe -ArgumentList '--self-test', 'artifacts/portable-smoke.json' -Wait -PassThru -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Portable smoke test failed' }
           Get-Content artifacts/portable-smoke.json
       - name: Smoke test macOS portable executable
         if: runner.os == 'macOS'
         timeout-minutes: 2
         run: dist/FRM.app/Contents/MacOS/FRM --self-test artifacts/portable-smoke.json
+      - name: Smoke test Linux executable
+        if: runner.os == 'Linux'
+        timeout-minutes: 3
+        run: dist/FRM-Portable --self-test artifacts/portable-smoke.json
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
+      - name: Verify installer upgrade and uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $compiler /DAppVersion=0.2.99 "/O$env:GITHUB_WORKSPACE/build/installer-test" packaging/windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Upgrade fixture build failed' }
+          $destination = Join-Path $env:RUNNER_TEMP 'FRM-installed-test'
+          $old = Start-Process build/installer-test/FRM-v0.2.99-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$destination" -Wait -PassThru
+          if ($old.ExitCode -ne 0) { throw 'Initial installation failed' }
+          $new = Start-Process artifacts/FRM-v0.3.0-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($new.ExitCode -ne 0) { throw 'Upgrade failed' }
+          $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'FRM')
+          if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.3.0') { throw 'Upgrade identity/version incorrect' }
+          $smoke = Start-Process "$destination/FRM.exe" -ArgumentList '--self-test', 'artifacts/installed-smoke.json' -Wait -PassThru
+          if ($smoke.ExitCode -ne 0) { throw 'Installed app failed' }
+          $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0 -or (Test-Path "$destination/FRM.exe")) { throw 'Uninstall failed' }
       - name: Package Windows
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/FRM -DestinationPath "FRM-${{ github.ref_name }}-${{ matrix.label }}.zip"
+        run: Copy-Item dist/FRM-Portable.exe "artifacts/FRM-${{ github.ref_name }}-Windows-x64-Portable.exe"
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: tar -czf "artifacts/FRM-${{ github.ref_name }}-Linux-x64.tar.gz" -C dist FRM-Portable
       - name: Package macOS
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent dist/FRM.app "FRM-${{ github.ref_name }}-${{ matrix.label }}.zip"
+        run: ditto -c -k --sequesterRsrc --keepParent dist/FRM.app "artifacts/FRM-${{ github.ref_name }}-${{ matrix.label }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: FRM-${{ matrix.label }}
-          path: FRM-*.zip
+          path: |
+            artifacts/FRM-*.zip
+            artifacts/FRM-*.exe
+            artifacts/FRM-*.tar.gz
           retention-days: 14
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -77,5 +116,5 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           cd release
-          sha256sum *.zip > SHA256SUMS.txt
-          gh release create "$TAG" *.zip SHA256SUMS.txt --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Portable preview builds for Windows x64, Mac Apple Silicon and Mac Intel. Extract the complete package. Unsigned; see README for playback/color limitations and third-party notices. Video is silent; output is an 8-bit preview, not a mastering reference."
+          sha256sum FRM-* > SHA256SUMS.txt
+          gh release create "$TAG" FRM-* SHA256SUMS.txt --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Windows single-file portable EXE and upgrade-aware per-user installer; Linux x64 portable executable (Ubuntu 24.04 baseline); Mac Apple Silicon and Intel apps. Source and notices are included. Optional update checks in Help. Unsigned preview, silent 8-bit viewing output. See README for system requirements and limitations."

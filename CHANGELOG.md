@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Windows single-file portable executable and upgrade-aware per-user installer.
+- Optional GitHub release checks.
+- Linux x64 portable build on Ubuntu 24.04.
+- Luca Auletta publisher metadata and embedded source/notices.
+
 ## 0.2.0 — 2026-10-12
 
 - FRM becomes a player and review workspace with a compact viewer-focused interface.
