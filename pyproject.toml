@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frm-player"
+version = "0.1.0"
+description = "A minimal, portable image sequence and movie review player"
+requires-python = ">=3.13,<3.14"
+license = "GPL-3.0-only"
+dependencies = [
+  "PySide6-Essentials==6.12.0",
+  "numpy==2.5.4",
+  "OpenImageIO==3.1.18.1",
+  "opencolorio==2.6.0",
+  "av==19.0.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pyinstaller==6.22.3"]
+
+[project.gui-scripts]
+frm = "frm.app:main"
+
+[tool.setuptools.packages.find]
+include = ["frm*"]
+
+[tool.setuptools.package-data]
+frm = ["assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
