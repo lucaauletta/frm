@@ -23,6 +23,6 @@ else:
               version='packaging/windows-version.txt' if sys.platform == 'win32' else None)
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
-                 info_plist={'CFBundleShortVersionString': '0.3.0',
+                 info_plist={'CFBundleShortVersionString': '0.3.1',
                              'NSHumanReadableCopyright': 'Copyright © 2026 Luca Auletta — https://github.com/lucaauletta/frm',
                              'NSHighResolutionCapable': True})

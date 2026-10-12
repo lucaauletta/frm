@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0
+## 0.3.1
 
 - Windows single-file portable executable and upgrade-aware per-user installer.
 - Optional GitHub release checks.

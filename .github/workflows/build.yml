@@ -70,15 +70,16 @@ jobs:
           & $compiler /DAppVersion=0.2.99 "/O$env:GITHUB_WORKSPACE/build/installer-test" packaging/windows.iss
           if ($LASTEXITCODE -ne 0) { throw 'Upgrade fixture build failed' }
           $destination = Join-Path $env:RUNNER_TEMP 'FRM-installed-test'
-          $old = Start-Process build/installer-test/FRM-v0.2.99-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$destination" -Wait -PassThru
+          $old = Start-Process build/installer-test/FRM-v0.2.99-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$destination" -Wait -PassThru -WindowStyle Hidden
           if ($old.ExitCode -ne 0) { throw 'Initial installation failed' }
-          $new = Start-Process artifacts/FRM-v0.3.0-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          $new = Start-Process artifacts/FRM-v0.3.1-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru -WindowStyle Hidden
           if ($new.ExitCode -ne 0) { throw 'Upgrade failed' }
-          $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'FRM')
-          if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.3.0') { throw 'Upgrade identity/version incorrect' }
-          $smoke = Start-Process "$destination/FRM.exe" -ArgumentList '--self-test', 'artifacts/installed-smoke.json' -Wait -PassThru
+          $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object PSChildName -eq '{39F1E96A-B88B-4E5E-9BCB-EF4D3C4C9EC2}_is1')
+          $entries | Select-Object DisplayName, DisplayVersion, InstallLocation | Format-List
+          if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.3.1') { throw 'Upgrade identity/version incorrect' }
+          $smoke = Start-Process "$destination/FRM.exe" -ArgumentList '--self-test', 'artifacts/installed-smoke.json' -Wait -PassThru -WindowStyle Hidden
           if ($smoke.ExitCode -ne 0) { throw 'Installed app failed' }
-          $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru -WindowStyle Hidden
           if ($uninstall.ExitCode -ne 0 -or (Test-Path "$destination/FRM.exe")) { throw 'Uninstall failed' }
       - name: Package Windows
         if: runner.os == 'Windows'

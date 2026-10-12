@@ -6,7 +6,7 @@ FRM is made for artists, editors and post-production teams who want to drop a sh
 
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
-> **Version 0.3.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.3.1 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 
