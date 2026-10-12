@@ -5,7 +5,7 @@ from pathlib import Path
 import time
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QKeySequence, QShortcut, QColor
+from PySide6.QtGui import QAction, QKeySequence, QShortcut, QColor, QPixmap
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QSlider, QCheckBox, QFileDialog,
     QMessageBox, QDialog, QPlainTextEdit, QListWidget, QListWidgetItem, QSplitter,
@@ -46,7 +46,13 @@ class MainWindow(QMainWindow):
         root = QWidget(); self.setCentralWidget(root)
         layout = QVBoxLayout(root); layout.setContentsMargins(12, 8, 12, 10); layout.setSpacing(8)
         header = QHBoxLayout()
-        brand = QLabel("FRM"); brand.setObjectName("brand"); header.addWidget(brand)
+        brand = QLabel(); brand.setObjectName("brand")
+        brand.setAccessibleName("FRM")
+        logo = QPixmap(str(Path(__file__).parent / "assets" / "wordmark-white.png"))
+        logo = logo.scaledToHeight(60, Qt.TransformationMode.SmoothTransformation)
+        logo.setDevicePixelRatio(2)
+        brand.setPixmap(logo)
+        header.addWidget(brand)
         tag = QLabel("PLAYER / REVIEW"); tag.setObjectName("muted"); header.addWidget(tag)
         header.addSpacing(16)
         self._button(header, "Open A", lambda: self.open_dialog("A"))

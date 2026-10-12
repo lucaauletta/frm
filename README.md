@@ -12,7 +12,7 @@ We disclose this openly so users can make an informed choice. Passing automated 
 
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
-> **Version 0.3.1 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.3.2 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 

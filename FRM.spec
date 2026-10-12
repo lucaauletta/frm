@@ -19,10 +19,12 @@ if sys.platform == 'darwin':
     coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FRM')
 else:
     exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='FRM-Portable',
+              icon='frm/assets/app-icon.ico' if sys.platform == 'win32' else None,
               debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
               version='packaging/windows-version.txt' if sys.platform == 'win32' else None)
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
-                 info_plist={'CFBundleShortVersionString': '0.3.1',
+                 icon='frm/assets/app-icon.icns',
+                 info_plist={'CFBundleShortVersionString': '0.3.2',
                              'NSHumanReadableCopyright': 'Copyright © 2026 Luca Auletta — https://github.com/lucaauletta/frm',
                              'NSHighResolutionCapable': True})

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.3.1"
+  #define AppVersion "0.3.2"
 #endif
 [Setup]
 AppId={{39F1E96A-B88B-4E5E-9BCB-EF4D3C4C9EC2}
@@ -21,6 +21,7 @@ OutputBaseFilename=FRM-v{#AppVersion}-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\frm\assets\app-icon.ico
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes

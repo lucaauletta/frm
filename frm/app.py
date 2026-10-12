@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 from PySide6.QtCore import Qt, QTimer, QLocale
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QDoubleSpinBox, QCheckBox, QFileDialog,
@@ -157,6 +157,7 @@ from .window import MainWindow
 
 
 def configure_app(app):
+    app.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "app-icon.png")))
     QLocale.setDefault(QLocale("en_US"))
     QFontDatabase.addApplicationFont(str(Path(__file__).parent / "assets" / "Inter.ttf"))
     app.setFont(QFont("Inter", 10))

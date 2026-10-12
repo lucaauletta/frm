@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Integrate the selected FRM wordmark in white for the dark workspace.
+- Add the black frame/play symbol on a light tile to app windows, Windows EXE/Setup and macOS bundles.
+- Include reproducible native icon packaging from the approved artwork.
+
 ## 0.3.1
 
 - Windows single-file portable executable and upgrade-aware per-user installer.

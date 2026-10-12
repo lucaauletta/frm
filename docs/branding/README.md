@@ -5,7 +5,7 @@ Selected direction: FRAME, with separate wordmark and symbol.
 - `frm-wordmark-black.png`: FRM letters only, transparent PNG, 1935 × 813 px.
 - `frm-symbol-black.png`: opposing frame corners and Play symbol, transparent PNG, 1254 × 1254 px.
 
-Created with the built-in image generation tool from Luca Auletta's supplied references. These are raster artwork masters, not SVG vectors or packaged operating-system icons. They have not yet been integrated into the application. Use on a light background for contrast.
+Created with the built-in image generation tool from Luca Auletta's supplied references. These are raster artwork masters, not SVG vectors or packaged operating-system icons. Version 0.3.2 integrates a white wordmark in the dark workspace and the black symbol on a light app-icon tile. Run `python scripts/build_branding.py` to regenerate the PNG, ICO and ICNS application assets. Original black masters remain unchanged.
 
 Generation specifications:
 
