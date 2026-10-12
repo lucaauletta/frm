@@ -110,6 +110,7 @@ class PlaybackWorker(QThread):
     stats = Signal(int, object, int)
     warning = Signal(str)
     measured = Signal(object)
+    preparing_changed = Signal(bool)
 
     def __init__(self, source, cache, settings, width, decoder="cpu", fast_preview=True):
         super().__init__()
@@ -118,11 +119,29 @@ class PlaybackWorker(QThread):
         self.requested = None
         self.decoder = decoder
         self.fast_preview = fast_preview
+        self.latest_ticket = 0
+        self.preparing = False
+        self.prepare_index = 0
 
     def request(self, index, ticket):
         with self.condition:
             self.requested = (index, ticket)
+            self.latest_ticket = ticket
             self.condition.notify()
+
+    def prepare_cache(self, enabled=True):
+        with self.condition:
+            self.preparing = bool(enabled and self.cache is not None)
+            if self.preparing:
+                self.prepare_index = 0
+            self.condition.notify()
+        self.preparing_changed.emit(self.preparing)
+
+    def superseded(self, ticket, background):
+        with self.condition:
+            return self.isInterruptionRequested() or (
+                (self.requested is not None or not self.preparing) if background
+                else self.latest_ticket != ticket)
 
     def stop(self):
         self.requestInterruption()
@@ -145,12 +164,19 @@ class PlaybackWorker(QThread):
             self.prepared.emit(info, settings)
             while not self.isInterruptionRequested():
                 with self.condition:
-                    self.condition.wait_for(lambda: self.requested is not None or self.isInterruptionRequested())
+                    self.condition.wait_for(lambda: self.requested is not None or self.preparing or self.isInterruptionRequested())
                     if self.isInterruptionRequested():
                         break
-                    index, ticket = self.requested
-                    self.requested = None
+                    background = self.requested is None
+                    if background:
+                        index, ticket = self.prepare_index, -2
+                    else:
+                        index, ticket = self.requested
+                        self.requested = None
                 try:
+                    if background and (not cache_enabled or (info.count_exact and index >= info.total)):
+                        self.prepare_cache(False)
+                        continue
                     started = perf_counter()
                     decode_ms = transform_ms = write_ms = 0.0
                     rgb = None
@@ -163,7 +189,9 @@ class PlaybackWorker(QThread):
                     hit = rgb is not None
                     if not hit:
                         before = perf_counter()
-                        raw = reader.read(index, self.isInterruptionRequested)
+                        raw = reader.read(index, lambda: self.superseded(ticket, background))
+                        if self.superseded(ticket, background):
+                            continue
                         decode_ms = (perf_counter() - before) * 1000
                         before = perf_counter()
                         rgb = preview(raw, self.width, cpu, self.fast_preview)
@@ -173,9 +201,14 @@ class PlaybackWorker(QThread):
                     if self.isInterruptionRequested():
                         break
                     # Display first. Disk writes never block the Qt UI or delay first delivery.
-                    self.frame.emit(index, rgb, ticket)
+                    if not background and not self.superseded(ticket, background):
+                        self.frame.emit(index, rgb, ticket)
                     if cache_enabled and not hit:
                         try:
+                            if background and self.cache.used + rgb.nbytes + (256 if self.cache.path else 0) > self.cache.limit:
+                                self.warning.emit("Cache budget reached: partial cache retained. Increase budget or lower preview resolution for the whole shot.")
+                                self.prepare_cache(False)
+                                continue
                             before = perf_counter()
                             stored = self.cache.put(index, rgb)
                             write_ms = (perf_counter() - before) * 1000
@@ -188,12 +221,23 @@ class PlaybackWorker(QThread):
                     self.measured.emit(dict(backend=reader.backend, cache_hit=hit,
                         decode_ms=decode_ms, transform_ms=transform_ms, write_ms=write_ms,
                         total_ms=(perf_counter()-started)*1000, fallback=reader.fallback_reason))
+                    if background:
+                        self.prepare_index = index + 1
                 except EOFError as exc:
-                    self.ended.emit(int(exc.args[0]), ticket)
+                    if background:
+                        self.prepare_cache(False)
+                    else:
+                        self.ended.emit(int(exc.args[0]), ticket)
                 except InterruptedError:
-                    break
+                    if self.isInterruptionRequested():
+                        break
+                    continue
                 except Exception as exc:
-                    self.failed.emit(str(exc), ticket)
+                    if background:
+                        self.prepare_cache(False)
+                        self.warning.emit(f"Cache preparation stopped: {exc}")
+                    else:
+                        self.failed.emit(str(exc), ticket)
         except Exception as exc:
             self.failed.emit(str(exc), -1)
         finally:
@@ -224,6 +268,7 @@ class PlayerSession(QObject):
         self.decoder = "cpu"
         self.fast_preview = True
         self.performance = {}
+        self.preparing = False
 
     def open(self, source, mode, limit, width, settings=None, index=0):
         self.pending = (source, mode, limit, width, settings, index)
@@ -260,6 +305,7 @@ class PlayerSession(QObject):
         self.source = self.info = None
         self.index = -1
         self.cached = self.used = self.hits = 0
+        self.preparing = False
         if self.pending:
             args, self.pending = self.pending, None
             self._start(*args)
@@ -285,6 +331,7 @@ class PlayerSession(QObject):
         worker.stats.connect(lambda n, size, hits: self._stats(n, size, hits) if generation == self.generation else None)
         worker.warning.connect(lambda message: self._warning(message) if generation == self.generation else None)
         worker.measured.connect(lambda values: self._measured(values) if generation == self.generation else None)
+        worker.preparing_changed.connect(lambda enabled: self._preparing(enabled) if generation == self.generation else None)
         worker.failed.connect(lambda message, ticket: self._failed(message, ticket) if generation == self.generation else None)
         worker.ended.connect(lambda total, ticket: self._ended(total, ticket) if generation == self.generation else None)
         worker.finished.connect(self._stopped)
@@ -298,6 +345,15 @@ class PlayerSession(QObject):
 
     def _measured(self, values):
         self.performance = values
+
+    def _preparing(self, enabled):
+        self.preparing = enabled
+        self.changed.emit()
+
+    def prepare_cache(self, enabled=True):
+        if self.worker and self.cache:
+            self.notice = ""
+            self.worker.prepare_cache(enabled)
 
     def request(self, index):
         if self.worker:

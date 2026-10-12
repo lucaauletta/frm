@@ -25,6 +25,6 @@ else:
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
                  icon='frm/assets/app-icon.icns',
-                 info_plist={'CFBundleShortVersionString': '0.4.0',
+                 info_plist={'CFBundleShortVersionString': '0.4.1',
                              'NSHumanReadableCopyright': 'Copyright © 2026 Luca Auletta — https://github.com/lucaauletta/frm',
                              'NSHighResolutionCapable': True})

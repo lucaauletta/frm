@@ -121,6 +121,8 @@ class MainWindow(QMainWindow):
         self.budget.setCurrentIndex(1)
         self.budget.setToolTip("Total preview cache budget, shared by A and B; decoder, display and note memory are additional.")
         self.budget.currentIndexChanged.connect(self.rebuild); transport.addWidget(self.budget)
+        self.cache_budgets = {"ram": 512 * 1024**2, "disk": 8 * 1024**3}
+        self.previous_cache_mode = "ram"
         transport.addStretch()
         self._button(transport, "|‹", lambda: self.go(0))
         self._button(transport, "‹", lambda: self.step(-1))
@@ -145,6 +147,8 @@ class MainWindow(QMainWindow):
         self._button(tools, "Undo stroke", self.undo_stroke)
         self._button(tools, "Clear frame", self.clear_annotation)
         self._button(tools, "Add / edit note", self.edit_note)
+        self.prepare_button = self._button(tools, "Prepare cache", self.prepare_cache)
+        self.prepare_button.setToolTip("Fill the preview cache while paused. Scrubbing takes priority. Stops when the budget is full.")
         tools.addStretch()
         self._button(tools, "Review notes", lambda: panel.setVisible(not panel.isVisible()))
         self._button(tools, "Fullscreen", self.fullscreen)
@@ -290,8 +294,27 @@ class MainWindow(QMainWindow):
         self.sessions[slot].open(source, self.cache_mode.currentData(), limit, self.preview.currentData(), settings, max(0, index))
 
     def cache_changed(self):
+        if self.previous_cache_mode != "off":
+            self.cache_budgets[self.previous_cache_mode] = self.budget.currentData()
+        mode = self.cache_mode.currentData()
+        self.previous_cache_mode = mode
+        self.budget.blockSignals(True)
+        self.budget.clear()
+        choices = [("256 MiB", 256*1024**2), ("512 MiB", 512*1024**2), ("1 GiB", 1024**3), ("2 GiB", 2*1024**3)]
+        if mode == "disk":
+            choices += [("4 GiB", 4*1024**3), ("8 GiB", 8*1024**3), ("16 GiB", 16*1024**3), ("32 GiB", 32*1024**3)]
+        for label, size in choices:
+            self.budget.addItem(label, size)
+        self.budget.setCurrentIndex(max(0, self.budget.findData(self.cache_budgets.get(mode, 512*1024**2))))
+        self.budget.blockSignals(False)
         self.budget.setEnabled(self.cache_mode.currentData() != "off")
         self.rebuild()
+
+    def prepare_cache(self):
+        self.set_playing(False)
+        enabled = not any(s.preparing for s in self.sessions.values())
+        for session in self.sessions.values():
+            session.prepare_cache(enabled)
 
     def rebuild(self, *_):
         self.set_playing(False)
@@ -366,7 +389,9 @@ class MainWindow(QMainWindow):
             self.index = index
             self.timeline.blockSignals(True)
             self.timeline.setMaximum(max(session.total - 1, index))
-            self.timeline.setValue(index); self.timeline.blockSignals(False)
+            if not self.timeline.isSliderDown():
+                self.timeline.setValue(index)
+            self.timeline.blockSignals(False)
 
     def on_error(self, message):
         self.error_text = message
@@ -377,10 +402,23 @@ class MainWindow(QMainWindow):
         count = sum(s.cached for s in self.sessions.values())
         used = sum(s.used for s in self.sessions.values())
         hits = sum(s.hits for s in self.sessions.values())
-        self.cache_label.setText(f"{self.cache_mode.currentText()} / {count:,} frames / {used / 1024**2:.1f} MiB / {hits:,} hits")
+        coverage = " | ".join(f"{slot}: {s.cached:,}/{s.total:,}{'' if s.count_exact else '~'}" for slot,s in self.sessions.items() if s.info)
+        self.cache_label.setText(f"Cache {coverage or 'empty'} / {used / 1024**2:.1f} MiB / {hits:,} reused")
+        self.prepare_button.setText("Stop preparation" if any(s.preparing for s in self.sessions.values()) else "Prepare cache")
+        self.prepare_button.setEnabled(any(s.cache is not None for s in self.sessions.values()))
+        estimates = []
+        for slot, session in self.sessions.items():
+            if session.cache and session.info:
+                w = min(session.info.width, self.preview.currentData())
+                h = max(1, round(session.info.height*w/max(1,session.info.width)))
+                needed = (w*h*3 + (256 if session.cache.path else 0))*session.total
+                if needed > session.cache.limit:
+                    estimates.append(f"{slot}: whole-shot cache needs about {needed/1024**3:.2f} GiB; budget is {session.cache.limit/1024**3:.2f} GiB. Cache is partial; increase budget or reduce preview size.")
+        self.cache_label.setToolTip("\n".join(estimates) or "Cached frames remain available until media/settings change or FRM closes.")
         if self.error_text:
             self.status.setText(self.error_text); return
         notices = [s.notice for s in self.sessions.values() if s.notice]
+        notices.extend(estimates)
         if notices:
             self.status.setText(" | ".join(notices)); return
         info = self.sessions["A"].info
@@ -434,6 +472,11 @@ class MainWindow(QMainWindow):
         self.anchor, self.anchor_frame = time.monotonic(), self.index
 
     def set_playing(self, playing):
+        if playing:
+            # Never interleave full-shot preparation with real-time demands.
+            for session in self.sessions.values():
+                if session.preparing:
+                    session.prepare_cache(False)
         self.playing = playing
         if hasattr(self, "play_button"):
             self.play_button.setText("Pause" if playing else "Play")
@@ -453,6 +496,12 @@ class MainWindow(QMainWindow):
         if not self.playing or not a.info or a.busy or (self.viewer.mode != "A" and b.busy):
             return
         target = self.anchor_frame + int((time.monotonic() - self.anchor) * self.frame_rate())
+        if self.cache_mode.currentData() != "off" and target > self.index + 1:
+            # Cache playback visits every frame. Skipping while filling left holes
+            # that made each subsequent loop decode different frames again.
+            target = self.index + 1
+            self.anchor_frame = self.index
+            self.anchor = time.monotonic() - 1 / self.frame_rate()
         if a.count_exact and target >= a.total:
             if self.loop.isChecked():
                 self.request_frame(0); self.index = 0; self.reset_clock()

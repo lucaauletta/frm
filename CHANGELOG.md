@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1
+
+- Cancel obsolete movie seek work when a newer scrub request arrives; keep the worker alive.
+- Avoid moving the timeline handle under the pointer while dragging.
+- Cache-enabled playback visits every frame instead of leaving gaps by skipping.
+- Add interruptible Prepare cache for RAM and disk, without moving the viewer.
+- Show cache coverage and whole-shot size estimates; warn on insufficient budgets.
+- Separate RAM/disk budgets; disk defaults to 8 GiB with options up to 32 GiB.
+- Verify second-pass cache reuse and temporary-file cleanup for both cache modes.
+
+
 ## 0.4.0
 
 - Explicit A/B drop cards, replace labels and sequence-aware import grouping.

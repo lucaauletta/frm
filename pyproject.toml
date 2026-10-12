@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frm-player"
-version = "0.4.0"
+version = "0.4.1"
 description = "A portable player and A/B review workspace with frame annotations"
 requires-python = ">=3.13,<3.14"
 license = "GPL-3.0-only"

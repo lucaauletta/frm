@@ -12,7 +12,7 @@ We disclose this openly so users can make an informed choice. Passing automated 
 
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
-> **Version 0.4.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.4.1 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 
@@ -128,7 +128,7 @@ Negative and above-one image values reach OCIO. Final display values are clipped
 
 ## Direct reading, RAM and disk cache
 
-All modes decode only requested frames on background workers. There is one active request and one replaceable pending request per source, so rapid scrubbing cannot enqueue an entire shot. The default preview width is 1280; 1920 and 3840 are available. Small sources are not enlarged in the cache.
+Normal playback decodes requested frames on background workers; the optional Prepare cache action also fills frames in order while paused. There is one active request and one replaceable pending request per source, so rapid scrubbing cannot enqueue an entire shot. The default preview width is 1280; 1920 and 3840 are available. Small sources are not enlarged in the cache.
 
 | Mode | Behavior | Cleanup |
 | --- | --- | --- |
@@ -136,13 +136,13 @@ All modes decode only requested frames on background workers. There is one activ
 | **RAM cache while playing** | Reuses recently viewed display-ready frames in memory | Cleared on source replacement, cache change and close; process exit releases memory |
 | **Disk cache while playing** | Stores recently viewed display-ready frames in a private temporary folder | Folder deleted on normal close/replacement after the writer stops |
 
-The selectable **256 MiB / 512 MiB / 1 GiB / 2 GiB** limit is the combined A/B cache budget. With two sources, each receives half. This limits cached RGB data, not total process memory: native decoders, float conversion buffers, displayed images and review snapshots need additional memory. Frames larger than the budget are simply displayed without storage.
+The RAM choices are **256 MiB / 512 MiB / 1 GiB / 2 GiB**; disk also offers **4 / 8 / 16 / 32 GiB** and defaults to 8 GiB. The selected limit is the combined A/B cache budget. With two sources, each receives half. This limits cached RGB data, not total process memory: native decoders, float conversion buffers, displayed images and review snapshots need additional memory. Frames larger than the budget are simply displayed without storage.
 
-Both caches evict least-recently-used frames when full. Playback does not stop merely because the cache budget is reached. Disk caching also reserves 512 MiB free space; storage failures disable caching and report that direct reading continues. Cache statistics show retained frames, bytes and reuse hits.
+During normal playback, both caches evict least-recently-used frames when full; explicit preparation stops at capacity and retains its progress. Playback does not stop merely because the cache budget is reached. Disk caching also reserves 512 MiB free space; storage failures disable caching and report that direct reading continues. Cache statistics show retained frames, bytes and reuse hits.
 
 FRM does not write RAM-cache frames to disk. The operating system may independently page process memory. Disk caches use unique `frm-session-*` directories in the OS temporary directory; the app removes only the folders it created. **A crash, forced process termination or power loss can leave disk-cache files.** After closing all FRM instances, abandoned `frm-session-*` directories can be removed manually. No unconditional crash-cleanup guarantee is made. A normal-close deletion failure is reported instead of claiming success.
 
-Playback follows a monotonic clock and may skip frames if decoding is slower than the selected rate. Cache fills with the frames actually requested, not with an eager full-shot preload. Backward **uncached movie seeks restart decoding from the beginning** to preserve exact decoded frame indices, so seeking in long movies can be slow. Cached frames avoid that work. Unknown movie frame counts grow during decoding and become exact at EOF. VFR timestamps, embedded timecode playback and audio synchronization are not preserved; movies use average FPS.
+Direct/no-cache playback follows a monotonic clock and may skip frames if decoding is slow. Cache-enabled playback visits every frame and slows when necessary; Prepare cache fills the shot while paused. Backward **uncached movie seeks restart decoding from the beginning** to preserve exact decoded frame indices, so seeking in long movies can be slow. Cached frames avoid that work. Unknown movie frame counts grow during decoding and become exact at EOF. VFR timestamps, embedded timecode playback and audio synchronization are not preserved; movies use average FPS.
 
 Realtime performance depends on media, storage, preview size and hardware. Decoding and OCIO currently run on the CPU. There is no hardware video decoding or GPU display-transform path yet.
 
@@ -232,3 +232,14 @@ Open **Performance** to select a movie decoder and preview scaling mode, and ins
 - EXR/DPX/TIFF image decoding, ACES/LUT processing and disk cache writes still run on CPU. **There is no Metal color-processing or GPU-resident cache implementation yet.** VideoToolbox is Apple's video decode framework, not a Metal color pipeline. Frames are transferred to system RAM for display processing.
 
 A local 48-frame synthetic 1920x1080 H.264 test, with 1280-wide previews, measured median read/decode + preview stages of approximately 53 ms in filtered mode versus 13 ms in fast CPU mode. NVIDIA RTX 5090 decoding was verified active, but did not improve total time on this clip. This is a limited warm sequential synthetic comparison, excludes disk cache writes and startup, and is not a guarantee for your footage. CPU/NVIDIA RGB output matched on five tested indices including a backward seek. Run `python scripts/benchmark_playback.py <movie> --frames 48 --width 1280` and repeat with `--fast` to measure your own media.
+
+
+### Reliable cache preparation and scrubbing (0.4.1)
+
+Use **Prepare cache** to fill RAM or disk cache while paused. The viewer stays on the selected frame; scrubbing has priority over background preparation. **Stop preparation** retains frames already cached. Pressing Play stops background preparation and uses the existing cache, filling missing frames as it plays.
+
+With RAM or disk caching selected, playback visits every frame. The first pass can therefore run slower than the selected FPS when decoding is expensive, but it no longer skips frames and leaves holes in the cache. Direct/no-cache playback still skips frames when necessary to follow elapsed time. A prepared cache can improve repeat playback, subject to disk/display throughput.
+
+The cache counter shows coverage for each source (cached/total), memory/disk use and reuse hits. RAM defaults to 512 MiB; disk defaults to 8 GiB with choices up to 32 GiB. A/B share the selected total budget. FRM warns when the full shot is estimated to exceed its budget. Increase the budget or lower preview resolution to fit the whole shot. Preparation stops at capacity and keeps what it has built; normal playback uses bounded LRU eviction. A shot larger than its budget cannot stay fully cached and may still require decoding on each loop.
+
+Pause, scrubbing and loop playback do not delete cache. Closing/replacing media, changing preview/color/performance/cache settings, or closing FRM clears it. Disk cache is temporary session storage, not a persistent proxy saved for the next app launch. Normal shutdown waits for the worker before deleting cache files. A crash or forced termination can leave temporary files.
