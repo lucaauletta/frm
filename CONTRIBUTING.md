@@ -6,7 +6,7 @@ Keep the experience simple. Prefer one obvious action over another preferences p
 
 Follow the source setup in the README. Run `python -m pytest -q` before submitting changes. Tests generate their own small fixtures; never commit client footage, proprietary LUTs, secrets or large media files.
 
-The UI belongs on the Qt main thread. Decoding and OCIO preparation belong in workers. Every worker must support cancellation. Cache deletion must happen only after the writer has stopped and only for a directory created by that cache instance. Preserve float image data until the display conversion. Never add source-image writes to the viewing path.
+The UI belongs on the Qt main thread. Decoding and OCIO preparation belong in workers. Every worker must support cancellation. Cache deletion must happen only after the writer has stopped and only for a directory created by that cache instance. Preserve float image data until the display conversion. Never add source-image writes to the viewing path. Keep request queues bounded and reject stale frame results. Annotations belong to source/frame identities, never just the current screen position. Keep saved review documents separate from disposable cache. PDF/image exports must preserve source/frame and viewing context.
 
 Report bugs through GitHub Issues with OS/architecture, FRM version, format/codec, source dimensions, selected color settings, expected behavior and the error text. Include a small redistributable sample when possible. For performance reports include storage type and whether the shot was fully cached.
 

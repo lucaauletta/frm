@@ -16,10 +16,19 @@ def self_test(report: Path):
     from .app import MainWindow, configure_app, ColorDialog
     from .color import ColorSettings, processor
     from .media import discover, frames
+    from .review import Stroke, ReviewDocument
     app = QApplication.instance() or QApplication([])
     configure_app(app)
     result = {}
     window = None
+    def wait_for(condition):
+        deadline = time.monotonic() + 30
+        while not condition():
+            app.processEvents()
+            if time.monotonic() > deadline:
+                raise TimeoutError("Playback operation timed out")
+            time.sleep(.005)
+        app.processEvents()
     try:
         with tempfile.TemporaryDirectory(prefix="frm-test-") as folder:
             root = Path(folder)
@@ -42,31 +51,46 @@ def self_test(report: Path):
             processor(dialog.settings())
             dialog.close()
             result["ocio"] = "ACES display processor compiled"
+            for index, label in ((2, "direct"), (0, "RAM"), (1, "disk")):
+                window.cache_mode.setCurrentIndex(index)
+                window.open_path(str(root / "gradient.exr"))
+                wait_for(lambda: window.sessions["A"].index == 0)
+                assert not window.viewer.images["A"].isNull()
+                cache = window.sessions["A"].cache
+                cache_path = cache.path if cache else None
+                window.clear_media()
+                wait_for(lambda: window.sessions["A"].worker is None)
+                assert cache is None or cache.used == 0
+                assert cache_path is None or not cache_path.exists()
+                result[label] = "First frame displayed; cache freed on close"
+            window.open_path(str(root / "gradient.exr"), "A")
+            window.open_path(str(root / "gradient.png"), "B")
             window.show()
-            window.open_path(str(root / "gradient.exr"))
-            deadline = time.monotonic() + 30
-            while window.building:
-                app.processEvents()
-                if time.monotonic() > deadline:
-                    raise TimeoutError("Preview decoding timed out")
-                time.sleep(0.01)
-            app.processEvents()
-            assert window.available == 1, window.error_text
-            assert not window.viewer.image.isNull()
+            wait_for(lambda: all(not image.isNull() for image in window.viewer.images.values()))
+            entry = window.current_annotation("A")
+            entry.strokes.append(Stroke([[.2, .3], [.7, .6]], "#ff4b55", .008))
+            entry.note = "Review the transition and highlight detail.\nCheck continuity against version B."
+            window.refresh_notes()
             report.parent.mkdir(parents=True, exist_ok=True)
             assert window.grab().save(str(report.with_suffix(".png")))
-            cache_path = window.cache.path
+            window.document.export_pdf(report.with_suffix(".pdf"))
+            review_path = report.with_suffix(".frmreview")
+            window.document.save(review_path, window.state())
+            restored, state = ReviewDocument.load(review_path)
+            assert len(restored.active()) == 1 and "A" in state["sources"]
+            result["review"] = "A/B rendered; paint, PDF export and saved review verified"
             window.close()
-            app.processEvents()
-            assert not cache_path.exists()
-            result["gui"] = "Rendered preview; cache deleted on close"
+            wait_for(lambda: all(s.worker is None for s in window.sessions.values()))
+            result["gui"] = "Rendered review workspace; both caches closed"
             result["ok"] = True
     except Exception:
         result["error"] = traceback.format_exc()
         result["ok"] = False
     finally:
         if window:
+            window.document.dirty = False
             window.close()
+            wait_for(lambda: all(s.worker is None for s in window.sessions.values()))
         report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(json.dumps(result, indent=2), encoding="utf-8")
     return 0 if result["ok"] else 1

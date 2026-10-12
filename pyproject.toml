@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frm-player"
-version = "0.1.1"
-description = "A minimal, portable image sequence and movie review player"
+version = "0.2.0"
+description = "A portable player and A/B review workspace with frame annotations"
 requires-python = ">=3.13,<3.14"
 license = "GPL-3.0-only"
 dependencies = [
@@ -14,10 +14,12 @@ dependencies = [
   "OpenImageIO==3.1.18.1",
   "opencolorio==2.6.0",
   "av==19.0.1",
+  "reportlab==5.0.1",
+  "pillow==12.3.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "pyinstaller==6.22.3"]
+dev = ["pytest==9.1.1", "pyinstaller==6.22.3", "pypdf==6.20.0"]
 
 [project.gui-scripts]
 frm = "frm.app:main"

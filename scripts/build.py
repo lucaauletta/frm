@@ -26,10 +26,12 @@ def main():
     target.mkdir(parents=True, exist_ok=True)
     for name in ("LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, target / name)
+    if (ROOT / "docs").exists():
+        shutil.copytree(ROOT / "docs", target / "docs", dirs_exist_ok=True)
     licenses = target / "licenses"
     licenses.mkdir(exist_ok=True)
     inventory = []
-    for name in ["PySide6-Essentials", "shiboken6", "numpy", "OpenImageIO", "opencolorio", "av"]:
+    for name in ["PySide6-Essentials", "shiboken6", "numpy", "OpenImageIO", "opencolorio", "av", "reportlab", "pillow", "charset-normalizer"]:
         dist = metadata.distribution(name)
         inventory.append({"name": name, "version": dist.version, "license": dist.metadata.get("License-Expression") or dist.metadata.get("License", "See bundled notices")})
         for file in dist.files or []:
@@ -41,7 +43,9 @@ def main():
     # Ship the exact application source alongside the binary.
     source = target / "source"
     source.mkdir(exist_ok=True)
-    for name in ("frm", "scripts", "tests"):
+    for name in ("frm", "scripts", "tests", "docs"):
+        if not (ROOT / name).exists():
+            continue
         shutil.copytree(ROOT / name, source / name, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
     for name in ("pyproject.toml", "FRM.spec", "run_frm.py", "LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, source / name)

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — 2026-10-12
+
+- FRM becomes a player and review workspace with a compact viewer-focused interface.
+- Direct on-demand reading: no full-shot cache preparation before playback; optional RAM or disk LRU cache fills after frames are displayed. The configured cache budget is shared by A/B.
+- Decoder metadata inspector, automatic rational frame rates, explicit input color identification and conservative ACES setup for recognized linear sources. Unknown or conflicting metadata remains visible and is not guessed.
+- Two-version A/B viewing, side-by-side comparison and draggable wipe. Signed frame offset uses B = A + offset; out-of-range B frames remain blank.
+- Frame-bound freehand paint, brush color/width, undo, per-frame text notes and a review note list.
+- All annotated frames export as PNG/JPG plus a notes manifest, or as a paginated PDF report.
+- Save/open `.frmreview` documents with paint, text, preview snapshots, source references, color settings and A/B alignment. Cache remains separate and disposable.
+- Offline portable smoke checks now exercise direct/RAM/disk reading, cache cleanup, A/B, PDF export and review-document roundtrip.
+
+Known limits: frame-based A/B alignment does not resample differing source FPS; uncached backward movie seeks restart exact-index decoding; metadata comes from the first image/first video stream; exported frames are display previews, not source-resolution masters. Force termination may leave disk cache directories. Saved review documents and exports are intentionally permanent.
+
 ## 0.1.1 — 2026-10-12
 
 - Fix startup with the forced English locale using a portable Qt locale identifier.

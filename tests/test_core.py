@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 from frm.cache import SessionCache
 from frm.color import ColorSettings, processor, to_display, load_config
 from frm.media import discover, read_image, frames, probe
-from frm.worker import CacheWorker
+from frm.playback import PlayerSession
 from frm.app import MainWindow, ColorDialog, configure_app
 
 
@@ -102,8 +102,7 @@ def test_cache_limit_and_cleanup():
     rgb = np.zeros((4, 4, 3), np.uint8)
     cache.put(0, rgb)
     assert np.array_equal(cache.get(0), rgb)
-    with pytest.raises(ValueError, match="Cache limit"):
-        cache.put(1, np.zeros((100, 100, 3), np.uint8))
+    assert not cache.put(1, np.zeros((100, 100, 3), np.uint8))
     cache.close()
     assert not root.exists()
 
@@ -125,51 +124,62 @@ def until(app, condition, timeout=15):
     app.processEvents()
 
 
-def test_worker_resize_and_gui_lifecycle(tmp_path, app):
-    for i in range(5):
+@pytest.mark.parametrize("mode", ["off", "ram", "disk"])
+def test_direct_start_and_cleanup(tmp_path, app, mode):
+    for i in range(20):
         write_image(tmp_path / f"test.{i:04d}.exr")
-    cache = SessionCache()
-    worker = CacheWorker(discover(tmp_path), cache, ColorSettings(), 32)
-    errors = []
-    worker.failed.connect(errors.append)
-    worker.start()
-    until(app, lambda: worker.isFinished())
+    session = PlayerSession()
+    received, errors = [], []
+    session.displayed.connect(lambda i, rgb: received.append((i, rgb.shape)))
+    session.failed.connect(errors.append)
+    session.open(discover(tmp_path), mode, 4096, 32)
+    until(app, lambda: len(received) == 1 or bool(errors))
     assert not errors
-    assert cache.get(0).shape == (16, 32, 3)
-    cache.close()
+    assert received == [(0, (16, 32, 3))]
+    assert session.total == 20
+    # No predecode: the clip remains untouched until individual frames are requested.
+    time.sleep(.04); app.processEvents()
+    assert len(received) == 1
+    assert session.cache is None if mode == "off" else len(session.cache.entries) == 1
+    cache = session.cache
+    root = cache.path if cache else None
+    session.request(12)
+    until(app, lambda: len(received) == 2)
+    assert received[-1][0] == 12
+    session.request(0)
+    until(app, lambda: len(received) == 3)
+    session.close()
+    until(app, lambda: session.worker is None)
+    if cache:
+        assert cache.used == 0 and not cache.entries
+    if root:
+        assert not root.exists()
+
+
+def test_gui_lifecycle(tmp_path, app):
+    for i in range(5):
+        write_image(tmp_path / f"test.{i:04d}.png")
     window = MainWindow()
-    dialog = ColorDialog(ColorSettings(), window)
-    assert dialog.input_space.currentText() == "ACEScg"
-    processor(dialog.settings())
-    dialog.close()
     window.open_path(str(tmp_path))
-    until(app, lambda: not window.building)
-    assert window.available == 5, window.error_text
-    assert not window.viewer.image.isNull()
+    until(app, lambda: window.sessions["A"].index == 0)
+    assert not window.viewer.images["A"].isNull()
     window.step(2)
-    assert window.index == 2
-    window.toggle_play()
-    window.anchor -= 0.05
-    window.tick()
-    assert window.index >= 3
-    root = window.cache.path
-    window.clear_media()
-    assert not root.exists()
-    # Replacing a running generation must never display stale frames or delete the new cache.
-    window.open_path(str(tmp_path))
+    until(app, lambda: window.index == 2)
     window.rebuild()
-    until(app, lambda: window.pending is None and not window.building)
-    assert window.available == 5, window.error_text
-    root = window.cache.path
+    window.rebuild()
+    until(app, lambda: window.sessions["A"].index == 2 and not window.sessions["A"].pending)
+    cache = window.sessions["A"].cache
     window.close()
-    until(app, lambda: not root.exists())
+    until(app, lambda: all(s.worker is None for s in window.sessions.values()))
+    assert cache.used == 0
 
 
 def test_close_while_decoding(tmp_path, app):
     for i in range(15):
         write_image(tmp_path / f"test.{i:04d}.png")
     window = MainWindow()
+    window.cache_mode.setCurrentIndex(1)
     window.open_path(str(tmp_path))
-    root = window.cache.path
+    root = window.sessions["A"].cache.path
     window.close()
     until(app, lambda: not root.exists())

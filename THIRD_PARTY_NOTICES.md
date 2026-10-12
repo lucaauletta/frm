@@ -11,6 +11,9 @@ FRM source is GPL-3.0-only. Bundled libraries remain under their own licenses. P
 | FFmpeg and codec libraries | Video decoding | Build-dependent LGPL/GPL and component licenses; [FFmpeg licensing](https://ffmpeg.org/legal.html), [PyAV wheel build sources](https://github.com/PyAV-Org/pyav-wheels) |
 | NumPy | Pixel arrays | BSD-3-Clause and bundled component notices; [source](https://github.com/numpy/numpy) |
 | Inter | Interface font | SIL Open Font License 1.1; license included in `frm/assets/OFL.txt`; [source](https://github.com/rsms/inter) |
+| ReportLab | Review PDF generation | BSD-style license; [source](https://hg.reportlab.com/hg-public/reportlab/) |
+| Pillow | PDF image embedding | HPND/Pillow license; [source](https://github.com/python-pillow/Pillow) |
+| charset-normalizer | ReportLab dependency | MIT; [source](https://github.com/jawah/charset_normalizer) |
 | Python | Runtime | PSF license and bundled notices; [source](https://www.python.org/downloads/source/) |
 | PyInstaller | Packaging/bootloader | GPL with bootloader exception; [license](https://pyinstaller.org/en/stable/license.html), [source](https://github.com/pyinstaller/pyinstaller) |
 
