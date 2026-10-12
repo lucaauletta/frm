@@ -4,6 +4,12 @@
 
 FRM is made for artists, editors and post-production teams who want to drop a shot into a viewer, inspect frames and move on.
 
+## Development transparency
+
+FRM is a **vibe-coded project**, created by Luca Auletta with substantial AI assistance through OpenAI Codex. Product direction and feedback come from Luca; much of the code, documentation and automated testing is generated and iterated with AI assistance.
+
+We disclose this openly so users can make an informed choice. Passing automated tests does not replace independent code review or validation in real production workflows. FRM is an experimental preview; community review, bug reports and contributions are welcome.
+
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
 > **Version 0.3.1 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
