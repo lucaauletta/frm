@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-10-12
+
+- Fix startup with the forced English locale using a portable Qt locale identifier.
+- Exercise application configuration in the GUI tests as well as the frozen smoke test.
+- First downloadable preview release; the v0.1.0 release build was blocked by its startup smoke check.
+
 ## 0.1.0 — 2026-10-12
 
 Initial preview implementation:

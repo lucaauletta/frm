@@ -18,5 +18,5 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='FRM', debug=False,
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FRM')
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
-                 info_plist={'CFBundleShortVersionString': '0.1.0',
+                 info_plist={'CFBundleShortVersionString': '0.1.1',
                              'NSHighResolutionCapable': True})

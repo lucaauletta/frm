@@ -11,7 +11,7 @@ from frm.cache import SessionCache
 from frm.color import ColorSettings, processor, to_display, load_config
 from frm.media import discover, read_image, frames, probe
 from frm.worker import CacheWorker
-from frm.app import MainWindow, ColorDialog
+from frm.app import MainWindow, ColorDialog, configure_app
 
 
 def write_image(path, pixels=None):
@@ -110,7 +110,9 @@ def test_cache_limit_and_cleanup():
 
 @pytest.fixture(scope="module")
 def app():
-    return QApplication.instance() or QApplication([])
+    application = QApplication.instance() or QApplication([])
+    configure_app(application)
+    return application
 
 
 def until(app, condition, timeout=15):

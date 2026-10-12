@@ -446,7 +446,7 @@ class MainWindow(QMainWindow):
 
 
 def configure_app(app):
-    QLocale.setDefault(QLocale(QLocale.Language.English, QLocale.Territory.UnitedStates))
+    QLocale.setDefault(QLocale("en_US"))
     QFontDatabase.addApplicationFont(str(Path(__file__).parent / "assets" / "Inter.ttf"))
     app.setFont(QFont("Inter", 10))
     app.setStyle("Fusion")

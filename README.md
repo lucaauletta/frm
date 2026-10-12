@@ -4,7 +4,7 @@
 
 FRM is made for artists, editors and post-production teams who want to drop a shot into a viewer, inspect frames and move on.
 
-> **Version 0.1.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.1.1 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 
