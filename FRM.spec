@@ -1,7 +1,5 @@
 from PyInstaller.utils.hooks import collect_all
 import sys
-import os
-from pathlib import Path
 
 datas, binaries, hiddenimports = [('frm/assets', 'frm/assets'), ('build/legal', 'legal')], [], []
 for package in ['OpenImageIO', 'PyOpenColorIO', 'av']:
@@ -26,4 +24,5 @@ else:
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FRM.app', bundle_identifier='org.frm.player',
                  info_plist={'CFBundleShortVersionString': '0.3.0',
+                             'NSHumanReadableCopyright': 'Copyright © 2026 Luca Auletta — https://github.com/lucaauletta/frm',
                              'NSHighResolutionCapable': True})

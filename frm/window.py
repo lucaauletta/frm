@@ -180,6 +180,7 @@ class MainWindow(QMainWindow):
 
     def about(self):
         QMessageBox.information(self, "FRM", f"FRM {__version__} / Player & Review\nGPL-3.0-only\n\n"
+            "Copyright © 2026 Luca Auletta\nhttps://github.com/lucaauletta/frm\n\n"
             "Direct reading with optional bounded RAM or disk cache.\nA/B comparison, frame offsets, paint, notes and review reports.\n\n"
             "Space: play/pause · Arrows: step · F: fullscreen\nCache clears on normal close. RAM creates no FRM cache files.\nDisk cache may remain after a crash or forced termination.\n\n"
             "8-bit silent preview; no HDR/ICC reference output.\nMovie timing uses average FPS. Backward uncached movie seeks\nmay decode from the beginning to preserve frame accuracy.")
