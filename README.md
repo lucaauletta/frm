@@ -12,7 +12,7 @@ We disclose this openly so users can make an informed choice. Passing automated 
 
 ![FRM A/B review workspace with frame painting and notes](docs/review-workspace.png)
 
-> **Version 0.3.2 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
+> **Version 0.4.0 is an early preview, not a validated mastering tool.** It implements real media decoding, ACES/OCIO viewing transforms, LUTs and temporary preview caching. Read the limitations below before using it for production decisions.
 
 ## Download and open
 
@@ -37,7 +37,7 @@ Early builds are unsigned. Windows SmartScreen or macOS Gatekeeper may ask you t
 
 ## Start playing immediately
 
-1. Drop a movie, one numbered sequence frame or a folder containing one sequence into FRM. **Open A** does the same. Drop two files to open an A/B comparison.
+1. Drop a movie, numbered sequence frame or single-sequence folder into the **A** source card. Load comparison media into the **B** card after A. **Browse** / **Replace** opens a file picker. Cards highlight while dragging and show the loaded filename; hover for the full path. Dropping outside the cards asks which source to use. Two different shots dropped outside the cards open an assignment dialog with **Swap A / B** and **Load A + B**. Multiple selected frames from one sequence count as a single shot. A card accepts only one shot; invalid or excessive selections are rejected before opening.
 2. Press **Play** or **Space**. FRM reads the requested frames directly; it does not prepare the whole shot first.
 3. Choose **RAM cache while playing** (default), **Disk cache while playing**, or **Direct / no cache**. The current frame is delivered before it is added to the optional cache.
 4. Use **Color** for the selected source to inspect or override the viewing transform. **Metadata** shows the decoder-reported information and its interpretation.
@@ -54,7 +54,7 @@ Publisher/copyright metadata identifies **Luca Auletta** and **https://github.co
 
 ## Compare two versions
 
-Open a source in **A**, then another in **B**. Select **View A**, **View B**, **Side by side**, or **Wipe A / B**. In wipe mode, drag across the viewer with Paint disabled to move the dividing line.
+Drop a source into the **A** card, then another into **B**. Select **View A**, **View B**, **Side by side**, or **Wipe A / B**. In wipe mode, drag across the viewer with Paint disabled to move the dividing line.
 
 **B offset** is a signed offset measured in decoded frames:
 
@@ -220,3 +220,15 @@ FRM is licensed under **GNU GPL version 3 only (`GPL-3.0-only`)**. See [LICENSE]
 You may use FRM commercially, study it, change it and share it. If you distribute FRM or a modified version, comply with the GPL, including providing corresponding source and retaining required notices. Using the app does not change the ownership or license of your footage, images or LUTs. Third-party libraries retain their respective licenses. There is no warranty.
 
 Created for Luca Auletta and the open-source post-production community.
+
+
+## Performance and experimental hardware decoding
+
+Open **Performance** to select a movie decoder and preview scaling mode, and inspect the last processed frame's timings for each source: read/decode (including RGB conversion and fast video scaling), preview resize/color, cache write and total. Cache-hit timings measure retrieval; they do not represent decoding speed. Changing a performance option rebuilds preview caches. Settings apply to the current app session.
+
+- **CPU / compatibility** is the default.
+- **Try hardware** attempts NVIDIA NVDEC through CUDA on Windows/Linux, or Apple VideoToolbox on macOS. The displayed backend reflects the active decoder, not simply the requested setting. Codec/profile, driver, GPU and bundled FFmpeg support determine availability. Unsupported or failed hardware decoding falls back to CPU. CUDA toolkit installation is not required, but a compatible NVIDIA driver is. Hardware acceleration is experimental; Apple hardware decoding has not been validated on a physical Mac in this development session.
+- **Fast preview** (default) uses bilinear scaling. For movies it combines downsampling and RGB conversion before allocating float RGB, reducing memory traffic. **Quality preview** retains the filtered scaling path for fine-detail checks. Fast scaling can alias or soften downsampled detail; this affects captured review snapshots too.
+- EXR/DPX/TIFF image decoding, ACES/LUT processing and disk cache writes still run on CPU. **There is no Metal color-processing or GPU-resident cache implementation yet.** VideoToolbox is Apple's video decode framework, not a Metal color pipeline. Frames are transferred to system RAM for display processing.
+
+A local 48-frame synthetic 1920x1080 H.264 test, with 1280-wide previews, measured median read/decode + preview stages of approximately 53 ms in filtered mode versus 13 ms in fast CPU mode. NVIDIA RTX 5090 decoding was verified active, but did not improve total time on this clip. This is a limited warm sequential synthetic comparison, excludes disk cache writes and startup, and is not a guarantee for your footage. CPU/NVIDIA RGB output matched on five tested indices including a backward seek. Run `python scripts/benchmark_playback.py <movie> --frames 48 --width 1280` and repeat with `--fast` to measure your own media.

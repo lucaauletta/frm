@@ -40,6 +40,11 @@ def processor(settings: ColorSettings):
 def to_display(rgb, cpu):
     rgb = np.ascontiguousarray(rgb, dtype=np.float32).copy()
     h, w, _ = rgb.shape
-    cpu.apply(ocio.PackedImageDesc(rgb, w, h, 3))
+    if not cpu.isNoOp():
+        cpu.apply(ocio.PackedImageDesc(rgb, w, h, 3))
     np.nan_to_num(rgb, copy=False, nan=0, posinf=1, neginf=0)
-    return np.round(np.clip(rgb, 0, 1) * 255).astype(np.uint8)
+    # Reuse the owned float buffer instead of allocating three full-frame arrays.
+    np.clip(rgb, 0, 1, out=rgb)
+    np.multiply(rgb, 255, out=rgb)
+    np.rint(rgb, out=rgb)
+    return rgb.astype(np.uint8)

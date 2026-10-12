@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Explicit A/B drop cards, replace labels and sequence-aware import grouping.
+- Choose a destination for viewer drops; confirm or swap assignments for two shots.
+- Fast video preview conversion/downsampling with fewer full-frame allocations.
+- Optional NVIDIA NVDEC / Apple VideoToolbox decoding with CPU fallback.
+- Per-source stage timings and selectable Fast / Quality preview scaling.
+
+
 ## 0.3.2
 
 - Integrate the selected FRM wordmark in white for the dark workspace.

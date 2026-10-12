@@ -1,15 +1,15 @@
 VSVersionInfo(
-  ffi=FixedFileInfo(filevers=(0,3,2,0), prodvers=(0,3,2,0), mask=0x3f,
+  ffi=FixedFileInfo(filevers=(0,4,0,0), prodvers=(0,4,0,0), mask=0x3f,
     flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0,0)),
   kids=[StringFileInfo([StringTable('040904B0', [
     StringStruct('CompanyName', 'Luca Auletta'),
     StringStruct('FileDescription', 'FRM - Player & Review'),
-    StringStruct('FileVersion', '0.3.2'),
+    StringStruct('FileVersion', '0.4.0'),
     StringStruct('InternalName', 'FRM'),
     StringStruct('LegalCopyright', 'Copyright (C) 2026 Luca Auletta - GPL-3.0-only'),
     StringStruct('OriginalFilename', 'FRM-Portable.exe'),
     StringStruct('ProductName', 'FRM'),
-    StringStruct('ProductVersion', '0.3.2'),
+    StringStruct('ProductVersion', '0.4.0'),
     StringStruct('Comments', 'https://github.com/lucaauletta/frm')
   ])]), VarFileInfo([VarStruct('Translation', [1033, 1200])])]
 )

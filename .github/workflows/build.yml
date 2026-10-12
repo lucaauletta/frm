@@ -72,11 +72,11 @@ jobs:
           $destination = Join-Path $env:RUNNER_TEMP 'FRM-installed-test'
           $old = Start-Process build/installer-test/FRM-v0.2.99-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$destination" -Wait -PassThru -WindowStyle Hidden
           if ($old.ExitCode -ne 0) { throw 'Initial installation failed' }
-          $new = Start-Process artifacts/FRM-v0.3.2-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru -WindowStyle Hidden
+          $new = Start-Process artifacts/FRM-v0.4.0-Windows-x64-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru -WindowStyle Hidden
           if ($new.ExitCode -ne 0) { throw 'Upgrade failed' }
           $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object PSChildName -eq '{39F1E96A-B88B-4E5E-9BCB-EF4D3C4C9EC2}_is1')
           $entries | Select-Object DisplayName, DisplayVersion, InstallLocation | Format-List
-          if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.3.2') { throw 'Upgrade identity/version incorrect' }
+          if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.4.0') { throw 'Upgrade identity/version incorrect' }
           $smoke = Start-Process "$destination/FRM.exe" -ArgumentList '--self-test', 'artifacts/installed-smoke.json' -Wait -PassThru -WindowStyle Hidden
           if ($smoke.ExitCode -ne 0) { throw 'Installed app failed' }
           $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru -WindowStyle Hidden
@@ -118,4 +118,4 @@ jobs:
         run: |
           cd release
           sha256sum FRM-* > SHA256SUMS.txt
-          gh release create "$TAG" FRM-* SHA256SUMS.txt --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Windows single-file portable EXE and upgrade-aware per-user installer; Linux x64 portable executable (Ubuntu 24.04 baseline); Mac Apple Silicon and Intel apps. Source and notices are included. Optional update checks in Help. Unsigned preview, silent 8-bit viewing output. FRM 0.3.2 adds the selected white wordmark and native app icons. Development transparency: FRM is a vibe-coded project by Luca Auletta, developed with substantial AI assistance through OpenAI Codex. See README for system requirements and limitations."
+          gh release create "$TAG" FRM-* SHA256SUMS.txt --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Windows single-file portable EXE and upgrade-aware per-user installer; Linux x64 portable executable (Ubuntu 24.04 baseline); Mac Apple Silicon and Intel apps. Source and notices are included. Optional update checks in Help. Unsigned preview, silent 8-bit viewing output. FRM 0.4.0 adds explicit A/B import targets, faster preview preparation, stage timings and experimental NVIDIA NVDEC / Apple VideoToolbox decoding. Metal color processing is not implemented. Development transparency: FRM is a vibe-coded project by Luca Auletta, developed with substantial AI assistance through OpenAI Codex. See README for system requirements and limitations."

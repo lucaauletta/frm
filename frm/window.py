@@ -17,6 +17,7 @@ from .playback import PlayerSession
 from .review import ReviewDocument
 from .viewer import ReviewViewer
 from .updates import UpdateChecker
+from .imports import SourceDropCard, discover_shots
 
 
 def aligned_frame(frame_a, offset):
@@ -55,8 +56,6 @@ class MainWindow(QMainWindow):
         header.addWidget(brand)
         tag = QLabel("PLAYER / REVIEW"); tag.setObjectName("muted"); header.addWidget(tag)
         header.addSpacing(16)
-        self._button(header, "Open A", lambda: self.open_dialog("A"))
-        self._button(header, "Open B", lambda: self.open_dialog("B"))
         self.compare = QComboBox()
         for label, data in [("View A", "A"), ("View B", "B"), ("Side by side", "side"), ("Wipe A / B", "wipe")]:
             self.compare.addItem(label, data)
@@ -66,11 +65,23 @@ class MainWindow(QMainWindow):
         self.offset.setToolTip("B frame = A frame + offset. +10 advances B by ten frames. Missing frames stay blank.")
         self.offset.valueChanged.connect(self.offset_changed); header.addWidget(self.offset)
         header.addStretch()
-        self.active = QComboBox(); self.active.addItems(["Source A", "Source B"]); header.addWidget(self.active)
+        self.active = QComboBox(); self.active.addItems(["Tools: A", "Tools: B"])
+        self.active.setToolTip("Select the source for Color, Metadata and review tools. Import destinations are the A/B cards below.")
+        header.addWidget(self.active)
         self._button(header, "Color", self.color_dialog)
         self._button(header, "Metadata", self.metadata_dialog)
+        self._button(header, "Performance", self.performance_dialog)
         layout.addLayout(header)
-        self.source_label = QLabel("Open a shot. Compare a version. Leave a note.")
+        sources = QHBoxLayout()
+        self.source_cards = {}
+        for slot in ("A", "B"):
+            card = SourceDropCard(slot)
+            card.browse.connect(self.open_dialog)
+            card.dropped.connect(self.import_paths)
+            sources.addWidget(card, 1)
+            self.source_cards[slot] = card
+        layout.addLayout(sources)
+        self.source_label = QLabel("Drop directly into A or B above. Drop elsewhere to choose the destination. Two shots open an A/B assignment.")
         self.source_label.setObjectName("muted"); layout.addWidget(self.source_label)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.viewer = ReviewViewer(self.document)
@@ -202,13 +213,56 @@ class MainWindow(QMainWindow):
 
     def dropEvent(self, event):
         urls = event.mimeData().urls()
-        if len(urls) not in (1, 2):
-            self.on_error("Drop one shot, or two files for A/B comparison."); return
-        self.open_path(urls[0].toLocalFile(), "A")
-        if len(urls) == 2:
-            self.open_path(urls[1].toLocalFile(), "B")
+        if urls and all(url.isLocalFile() for url in urls):
+            self.import_paths([u.toLocalFile() for u in urls])
+            event.acceptProposedAction()
+
+    def import_paths(self, paths, slot=None):
+        try:
+            shots = discover_shots(paths)
+            if not shots:
+                return
+            if slot and len(shots) != 1:
+                raise ValueError(f"Source {slot} accepts one shot. Drop two shots into the viewer to assign A and B.")
+        except Exception as exc:
+            self.on_error(str(exc)); return
+        if len(shots) == 2:
+            dialog = QDialog(self); dialog.setWindowTitle("Assign comparison sources"); dialog.resize(650, 210)
+            layout = QVBoxLayout(dialog)
+            layout.addWidget(QLabel("Check the assignment before loading. Existing sources will be replaced."))
+            labels = [QLabel(), QLabel()]
+            def show_assignment():
+                for label, target, source in zip(labels, ("A / Primary", "B / Comparison"), shots):
+                    label.setTextFormat(Qt.TextFormat.PlainText)
+                    label.setText(f"{target}\n{source.paths[0]}"); label.setWordWrap(True)
+            for label in labels:
+                layout.addWidget(label)
+            show_assignment()
+            def swap():
+                shots.reverse(); show_assignment()
+            actions = QHBoxLayout(); layout.addLayout(actions)
+            self._button(actions, "Swap A / B", swap)
+            actions.addStretch()
+            self._button(actions, "Cancel", dialog.reject)
+            self._button(actions, "Load A + B", dialog.accept)
+            if not dialog.exec():
+                return
+            for target, source in zip(("A", "B"), shots):
+                self.open_path(str(source.paths[0]), target)
+        else:
+            if slot is None:
+                choice, ok = QInputDialog.getItem(self, "Load source", f"Load {shots[0].name} into:",
+                    ["A — Primary source", "B — Comparison version"], editable=False)
+                if not ok:
+                    return
+                slot = choice[0]
+            if slot == "B" and not (self.sessions["A"].source or self.sessions["A"].pending):
+                self.on_error("Load primary source A first, then drop the comparison version into B."); return
+            self.open_path(str(shots[0].paths[0]), slot)
 
     def open_path(self, path, slot="A", index=0, settings=None):
+        if slot == "B" and not (self.sessions["A"].source or self.sessions["A"].pending):
+            self.on_error("Load primary source A first, then add comparison B."); return
         try:
             source = discover(Path(path))
         except Exception as exc:
@@ -230,6 +284,7 @@ class MainWindow(QMainWindow):
         self.document.dirty = True
 
     def _open_session(self, slot, source, settings, index):
+        self.source_cards[slot].set_source(source)
         both = slot == "B" or self.sessions["B"].source is not None or self.sessions["B"].pending is not None
         limit = int(self.budget.currentData()) // (2 if both else 1)
         self.sessions[slot].open(source, self.cache_mode.currentData(), limit, self.preview.currentData(), settings, max(0, index))
@@ -547,6 +602,46 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("First image / first video stream. Decoder-exposed fields; missing metadata is not inferred."))
         dialog.exec()
 
+    def performance_dialog(self):
+        dialog = QDialog(self); dialog.setWindowTitle("Playback & cache performance"); dialog.resize(650, 360)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Movie decoding"))
+        decoder = QComboBox()
+        decoder.addItem("CPU / compatibility", "cpu")
+        decoder.addItem("Try hardware / NVIDIA NVDEC or Apple VideoToolbox", "hardware")
+        decoder.setCurrentIndex(0 if self.sessions["A"].decoder == "cpu" else 1)
+        layout.addWidget(decoder)
+        scaling = QComboBox()
+        scaling.addItem("Fast preview / bilinear scaling", True)
+        scaling.addItem("Quality preview / filtered scaling", False)
+        scaling.setCurrentIndex(0 if self.sessions["A"].fast_preview else 1)
+        layout.addWidget(scaling)
+        hint = QLabel("Hardware decoding is experimental and depends on the codec, GPU and driver.\n"
+            "Unsupported streams fall back to CPU. EXR/DPX/TIFF and color transforms remain on CPU.\n"
+            "Metal color processing is not implemented. Changing these options clears the preview cache.\n"
+            "Fast scaling trades downsampling quality for speed; use Quality for fine-detail review.")
+        hint.setWordWrap(True); layout.addWidget(hint)
+        readings = QLabel(); readings.setTextFormat(Qt.TextFormat.PlainText); readings.setWordWrap(True); layout.addWidget(readings)
+        def refresh():
+            lines = []
+            for slot, session in self.sessions.items():
+                p = session.performance
+                if p:
+                    lines.append(f"{slot}: {p['backend']} / {'cache hit' if p['cache_hit'] else 'new frame'}\n"
+                        f"Read + decode {p['decode_ms']:.1f} ms / Resize + color {p['transform_ms']:.1f} ms / "
+                        f"Cache write {p['write_ms']:.1f} ms / Total {p['total_ms']:.1f} ms\n{p['fallback']}")
+            readings.setText("\n\n".join(lines) or "Open media to measure the processing stages.")
+        def change():
+            for session in self.sessions.values():
+                session.decoder = decoder.currentData()
+                session.fast_preview = scaling.currentData()
+            self.rebuild()
+        decoder.currentIndexChanged.connect(change)
+        scaling.currentIndexChanged.connect(change)
+        timer = QTimer(dialog); timer.timeout.connect(refresh); timer.start(500); refresh()
+        self._button(layout, "Close", dialog.accept)
+        dialog.exec()
+
     def state(self):
         return {"sources": {slot: {"path": str(s.source.paths[0]), "color": asdict(s.settings) if s.settings else None}
                             for slot, s in self.sessions.items() if s.source},
@@ -628,6 +723,8 @@ class MainWindow(QMainWindow):
                 self.on_error(str(exc))
 
     def close_b(self):
+        self.source_cards["B"].set_source(None)
+        self.incoming.pop("B", None)
         self.set_playing(False); self.sessions["B"].close()
         self.viewer.set_frame("B", None, None, "B"); self.compare.setCurrentIndex(0)
 
@@ -636,6 +733,7 @@ class MainWindow(QMainWindow):
         self.incoming.clear()
         for slot, session in self.sessions.items():
             session.close(); self.viewer.set_frame(slot, None, None, slot)
+            self.source_cards[slot].set_source(None)
         self.timeline.setRange(0, 0)
         self.index = self.target = 0
         self.source_label.setText("Media closed / Review notes retained")
