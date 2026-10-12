@@ -43,7 +43,7 @@ Closing the media or app removes its temporary cache. Original media is read-onl
 
 Numbered sequences such as `shot.1001.exr` are found automatically in the same folder. Matching requires the same prefix, extension and numeric padding. Frames sort numerically. Missing frame numbers are reported when caching completes and are **collapsed**, not replaced with black frames. Open one frame when a folder contains multiple sequences. Unnumbered images open as stills.
 
-Synthetic tests exercise DPX, EXR, TIFF, JPEG, PNG, MOV/ProRes, MOV/DNxHD, MP4/H.264 and MP4/H.265. DNxHR shares the FFmpeg DNx decoder but has not yet been tested with a representative DNxHR fixture. This does not constitute validation of every camera profile, bit depth, chroma mode, container or damaged file.
+Synthetic tests exercise DPX, EXR, TIFF, JPEG, PNG, MOV/ProRes, MOV/DNxHD, MOV/DNxHR HQX (10-bit), MP4/H.264 and MP4/H.265. This does not constitute validation of every camera profile, bit depth, chroma mode, container or damaged file.
 
 ## Color: explicit, predictable viewing
 

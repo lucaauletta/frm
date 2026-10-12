@@ -2,6 +2,7 @@
 from pathlib import Path
 import importlib.metadata as metadata
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -13,7 +14,14 @@ from frm import __version__
 
 
 def main():
-    subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "FRM.spec"], cwd=ROOT, check=True)
+    env = os.environ.copy()
+    if sys.platform == "win32":
+        # Do not resolve Qt's system ICU import against unrelated tools on PATH
+        # (for example Poppler's incompatible ICU build).
+        system = Path(os.environ["SystemRoot"])
+        env["PATH"] = os.pathsep.join(map(str, [Path(sys.executable).parent,
+            Path(sys.base_prefix), Path(sys.base_prefix) / "DLLs", system / "System32", system]))
+    subprocess.run([sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", "FRM.spec"], cwd=ROOT, env=env, check=True)
     target = ROOT / "dist" / ("FRM.app/Contents/Resources" if sys.platform == "darwin" else "FRM")
     target.mkdir(parents=True, exist_ok=True)
     for name in ("LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):

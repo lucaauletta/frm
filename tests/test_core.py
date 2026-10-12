@@ -47,13 +47,14 @@ def test_image_codecs(tmp_path, ext):
     assert np.allclose(rgb, 0.25, atol=0.015)
 
 
-@pytest.mark.parametrize("codec,ext,pix_fmt,size", [
-    ("prores_ks", "mov", "yuv422p10le", (64, 32)),
-    ("dnxhd", "mov", "yuv422p", (1920, 1080)),
-    ("libx264", "mp4", "yuv420p", (64, 32)),
-    ("libx265", "mp4", "yuv420p", (64, 64)),
+@pytest.mark.parametrize("codec,ext,pix_fmt,size,profile", [
+    ("prores_ks", "mov", "yuv422p10le", (64, 32), None),
+    ("dnxhd", "mov", "yuv422p", (1920, 1080), None),
+    ("dnxhd", "mov", "yuv422p10le", (320, 240), "dnxhr_hqx"),
+    ("libx264", "mp4", "yuv420p", (64, 32), None),
+    ("libx265", "mp4", "yuv420p", (64, 64), None),
 ])
-def test_movie_codecs(tmp_path, codec, ext, pix_fmt, size):
+def test_movie_codecs(tmp_path, codec, ext, pix_fmt, size, profile):
     path = tmp_path / f"clip.{ext}"
     with av.open(str(path), "w") as output:
         stream = output.add_stream(codec, rate=Fraction(24, 1))
@@ -61,6 +62,8 @@ def test_movie_codecs(tmp_path, codec, ext, pix_fmt, size):
         stream.pix_fmt = pix_fmt
         if codec == "dnxhd":
             stream.bit_rate = 120_000_000
+        if profile:
+            stream.options = {"profile": profile}
         if codec == "libx265":
             stream.options = {"x265-params": "log-level=error:pools=1"}
         for i in range(3):

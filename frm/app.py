@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import time
 
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QTimer, QLocale
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QImage, QPainter, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -446,6 +446,7 @@ class MainWindow(QMainWindow):
 
 
 def configure_app(app):
+    QLocale.setDefault(QLocale(QLocale.Language.English, QLocale.Territory.UnitedStates))
     QFontDatabase.addApplicationFont(str(Path(__file__).parent / "assets" / "Inter.ttf"))
     app.setFont(QFont("Inter", 10))
     app.setStyle("Fusion")

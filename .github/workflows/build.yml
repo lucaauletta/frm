@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +37,7 @@ jobs:
       - run: python scripts/build.py
       - name: Smoke test Windows portable executable
         if: runner.os == 'Windows'
+        timeout-minutes: 2
         shell: pwsh
         run: |
           $process = Start-Process -FilePath dist/FRM/FRM.exe -ArgumentList '--self-test', 'artifacts/portable-smoke.json' -Wait -PassThru -WindowStyle Hidden
@@ -43,6 +45,7 @@ jobs:
           Get-Content artifacts/portable-smoke.json
       - name: Smoke test macOS portable executable
         if: runner.os == 'macOS'
+        timeout-minutes: 2
         run: dist/FRM.app/Contents/MacOS/FRM --self-test artifacts/portable-smoke.json
       - name: Package Windows
         if: runner.os == 'Windows'
@@ -72,4 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" release/*.zip --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Portable preview builds. Extract the complete package. Unsigned; see README for playback/color limitations and third-party notices."
+        run: |
+          cd release
+          sha256sum *.zip > SHA256SUMS.txt
+          gh release create "$TAG" *.zip SHA256SUMS.txt --prerelease --verify-tag --title "FRM $TAG — Preview" --notes "Portable preview builds for Windows x64, Mac Apple Silicon and Mac Intel. Extract the complete package. Unsigned; see README for playback/color limitations and third-party notices. Video is silent; output is an 8-bit preview, not a mastering reference."
